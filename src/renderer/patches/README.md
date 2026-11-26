@@ -6,8 +6,8 @@
 `.vue` 单文件组件已无法还原。因此渲染层按「冻结产物 + 外挂补丁」维护：
 
 - 冻结产物：`dist/renderer/` 下所有 `*.js`、`*.css`、图片，`index.html` 的骨架。
-- 可维护源码：本目录下的 `drag-sort.js`，以及 `scripts/inject-renderer.mjs` 里的文案替换规则。
-- 由脚本保证幂等：重复运行不会产生重复内容，`--check` 可随时验证补丁是否还在。
+- 可维护源码：本目录下的 `drag-sort.js`、`transparent.css`、`transparent.js`，以及 `scripts/inject-renderer.mjs` 里的文案替换规则。
+- 由脚本保证幂等：重复运行不会产生重复内容，`--check` 会逐块比对注入内容与源文件是否一致，防止手改 `index.html` 造成漂移。
 
 ## 补丁清单
 
@@ -23,6 +23,10 @@
 | 8 | 设备 ID | `machineIdSync` 读注册表失败时降级为随机 UUID | `src/main/storage/local_store.ts` |
 | 9 | 启动容错 | `safeInit()` 包裹全部非关键初始化，保证主窗口一定创建 | `src/main/index.ts` |
 | 10 | 页面加载 | 无 Vite dev server 时回退到 `dist/renderer/index.html` | `src/extensions/electron_extensions.ts` |
+| 11 | 极简纯透明样式 | 面板 / 表格行 / 表头 / 悬停 / 分组栏背景 → `transparent`，不动文字颜色 | `transparent.css` |
+| 12 | 透明开关 | `backAlpha <= 10` 时给 `<html>` 加 `sm-transparent` 类，滑条拉回即移除 | `transparent.js` |
+| 13 | `dist/renderer/general.2002cfc8.js` | 设置项错别字「窗口置页」→「窗口置顶」 | 注入脚本替换规则 |
+| 14 | 主进程窗口置顶 | 按 `alwaysOnTop` 配置创建窗口，设置页切换时 `setAlwaysOnTop` 即时生效 | `IndexWindow.ts` + `local_store.ts` |
 
 补丁 2/3/4 对应的主进程实现在 `src/main/index.ts`，补丁 1 的服务端实现在
 `src/main/service/index.ts` 的 `sortKeys()`。
@@ -42,6 +46,9 @@ npm run build:main       # 从 src/ 重建主进程与 preload 产物
 ## 修改建议
 
 - 改拖拽行为：编辑 `drag-sort.js` → 运行 `npm run build:renderer`。
+- 改纯透明效果：编辑 `transparent.css`（样式）或 `transparent.js`（触发阈值 `THRESHOLD`）→ `npm run build:renderer`。两条规则都挂在 `html.sm-transparent` 下，默认 `backAlpha=255` 时完全不生效，界面 100% 保持原样。
+- 改设置页文案：在 `scripts/inject-renderer.mjs` 的 `textPatches` 里加规则，字符串要用压缩产物里的 `\uXXXX` 字面量（如「窗口置顶」= `\u7A97\u53E3\u7F6E\u9876`），改完跑 `npm run build:renderer`。
+- 改窗口置顶行为：只改 `src/main/pages/IndexWindow.ts`，然后 `npm run build:main`；`check:patches` 有三条防回退校验（默认字段 / 即时应用 / 不写死 true）。
 - 新增渲染层功能：优先写成注入脚本（DOM 层）或新增独立窗口（主进程侧），
   不要直接手写压缩后的 Vue render function。
 - 若将来拿到原始 `.vue` 源码，应引入 Vite 重新构建整个 `dist/renderer/`，

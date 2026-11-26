@@ -17,7 +17,8 @@
 | 图表 | ECharts 分时图、日 K 线（前复权，180 日）、分钟 K 线 |
 | 自选股管理 | 添加 / 删除 / 置顶、别名备注、首列拖拽排序、分组 |
 | 成本与提醒 | 成本价、持仓金额、盈亏估算、上下破价提醒 |
-| 窗口 | 无边框置顶、透明度、贴边隐藏、开机自启、全局快捷键（老板键 Alt + 反引号） |
+| 窗口 | 无边框、置顶可开关、透明度、贴边隐藏、开机自启、全局快捷键（老板键 Alt + 反引号） |
+| 极简纯透明 | 把「背景透明度」拉到最低，面板只剩文字与图标（可随时拉回恢复） |
 | 配置 | 本地 JSON 持久化，设置页支持一键备份 / 恢复（恢复后自动重启） |
 
 > 功能边界：这是**自选股看盘**工具，不含全市场涨跌幅榜、热点板块轮动、资金面分析与定时推送。
@@ -51,7 +52,7 @@ Stock-Monitor/
 │   ├── preload/                 # preload TypeScript 源码（3 个文件）
 │   ├── extensions/              # BrowserWindow.loadWithRoute 扩展
 │   ├── types/globals.d.ts       # Electron / Window 扩展类型声明
-│   └── renderer/patches/        # 渲染层可维护补丁（drag-sort.js + 说明）
+│   └── renderer/patches/        # 渲染层可维护补丁（drag-sort / transparent / 说明）
 ├── scripts/
 │   ├── restore-sources.mjs      # 一次性：从原始 sourcemap 引导恢复源码
 │   ├── build-main.mjs           # esbuild 重建主进程 / preload 产物
@@ -88,6 +89,16 @@ npm start                 # 启动 Electron（需先 build:main）
 - `restore-sources.mjs` 只是历史引导工具，源码已在 `src/`，正常开发无需再运行；新 sourcemap 由 `build-main.mjs` 生成并直接指向 `src/`。
 - 构建策略与原始产物一致：esbuild 输出 CJS、`packages: external`，因此产物可直接被 `package.json` 的 `main` 加载，也能被 electron-builder 原样打包。
 - **启动流程同样曾是静默补丁**：sourcemap 里的 `whenReady()` 是在线版（按 `token` 决定先弹微信登录窗），且没有显式设置配置存储路径。离线版必须跳过登录窗、从 `userData` 重建配置单例、强制 `profiteTotal=true`；托盘图标要用 `logo.png`（打包后 `build/icons/` 不存在）；设备 ID 读取要容错。这些已回归 `src/main/index.ts` 与 `src/main/storage/local_store.ts`，`check:patches` 有对应的防回退校验。
+
+### 三种"透明度"的区别
+
+| 设置 | 对应字段 | 作用 |
+|---|---|---|
+| 背景透明度开关 | `windowTransparent` | Electron 透明窗口，打穿窗口层看到桌面；需重启，与系统亚克力互斥 |
+| 窗体透明度 | `opa` | `win.setOpacity()`，整窗连同文字一起淡（0~100） |
+| 背景透明度 | `backAlpha` | 面板 `#table` 自身的背景色（0~255），文字保持清晰 |
+
+**只显示文字和图标**：把「背景透明度」拉到最低即可。补丁脚本检测到 `backAlpha <= 10` 会启用纯透明样式，一并抹掉 Element Plus 表格写死的白底（行、表头、悬停、分组栏）；拉回任意不透明值立即恢复原样，无需重启。详见 [补丁说明](src/renderer/patches/README.md)。
 
 ## 🚀 打包与发布
 

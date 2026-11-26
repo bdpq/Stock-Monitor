@@ -14,7 +14,7 @@
  * 与渲染层的关系：渲染层（Vue）通过 `ipcRenderer.invoke('api', command, ...)`
  * 或 `ipcRenderer.send('native::open', winname, arg)` 来驱动这里的逻辑。
  */
-import { app, BrowserWindow, ipcMain, IpcMainEvent, IpcMainInvokeEvent, shell, webContents, globalShortcut, dialog, Menu, Tray, screen, DownloadItem, systemPreferences } from 'electron' // 引入 Electron 模块
+import { app, BrowserWindow, ipcMain, IpcMainEvent, IpcMainInvokeEvent, shell, webContents, globalShortcut, dialog, Menu, Tray, screen, DownloadItem } from 'electron' // 引入 Electron 模块
 import { release } from 'os'  // 引入操作系统模块，用于获取系统版本
 import '../extensions/electron_extensions' // 引入自定义扩展模块
 import { AddStockWindow } from './pages/AddStockWindow' // 引入添加股票弹窗窗口
@@ -641,9 +641,11 @@ function regiserIpcChannel() {
     } else if (command == "uploadLogs"){
       return await logger.compressAndSend()
     } else if (command == "isAeroGlassEnabled"){
-      // Electron 40 已移除该旧 API，做兼容降级，避免调用时抛错
-      const sp = systemPreferences as any
-      return typeof sp.isAeroGlassEnabled === 'function' ? sp.isAeroGlassEnabled() : false;
+      // 背景透明度闸门：设置页的 backAlpha 滑条写入前会调用本接口，
+      // 返回 false 时页面提示「你的系统配置不支持背景透明度调整」并直接 return，
+      // 导致滑条永远写不进配置。Electron 40 已移除 isAeroGlassEnabled，
+      // 离线版统一返回 true，恢复背景透明度设置（纯透明补丁也依赖 backAlpha 写入）。
+      return true;
     } else if (command == "shortCut"){
       let newShortCuts = {};
       let shortCuts = local_store.config.shortCuts;

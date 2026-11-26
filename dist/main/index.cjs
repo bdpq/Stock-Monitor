@@ -92,6 +92,8 @@ var Config = class {
     // 是否启用「贴边自动隐藏」
     this.windowTransparent = false;
     // 是否透明窗口
+    this.alwaysOnTop = true;
+    // 是否始终置顶（设置页「窗口置顶」开关，默认开）
     this.openAtLogin = true;
     // 是否开机自启
     // ===== 自选股数据 =====
@@ -1574,11 +1576,12 @@ var IndexWindow = class extends AppWindow {
    * 配置主面板窗口外观。
    * why：
    *   - 无边框(frame=false) + 透明/无阴影 + 不显示任务栏(skipTaskbar=true) = 悬浮看盘面板；
-   *   - alwaysOnTop=true 使面板始终置顶于其他窗口之上，便于盯盘。
+   *   - alwaysOnTop 由设置页开关决定，默认 true（便于盯盘），关闭后不再抢焦点；
+   *     旧版写死 true 会导致设置页关掉开关后窗口依然置顶。
    * @param options 待修改的窗口构造参数
    */
   configWindow(options) {
-    options.alwaysOnTop = true;
+    options.alwaysOnTop = local_store_default.config.alwaysOnTop !== false;
     options.center = false;
     options.frame = false;
     options.skipTaskbar = true;
@@ -1612,7 +1615,7 @@ var IndexWindow = class extends AppWindow {
    *   - attachWebContents 将渲染进程绑定到股票服务，使其能接收行情推送/图表数据；
    *   - 监听 appConfig 的 onConfig 事件，把配置变更转发到渲染层；
    *   - 创建时把 cfg.bounds 置 null，让下次启动重新计算默认位置（避免脏数据）；
-   *   - win32 平台强制设置置顶层级为 normal；
+   *   - win32 平台按配置设置置顶（normal 层级），关掉开关则不置顶；
    *   - 设置窗口不透明度为配置的 alpha 值，再加载 "/" 路由渲染主面板。
    */
   onWindowCreated(win) {
@@ -1625,11 +1628,24 @@ var IndexWindow = class extends AppWindow {
     local_store_default.editWith((cfg) => {
       cfg.bounds = null;
     });
-    if (process.platform == "win32") {
-      win.setAlwaysOnTop(true, "normal");
-    }
+    this.applyAlwaysOnTop(local_store_default.config.alwaysOnTop !== false);
     win.setOpacity(local_store_default.alpha);
     win.loadWithRoute("/");
+  }
+  /**
+   * 把「窗口置顶」开关应用到实际窗口。
+   * why：Electron 的 alwaysOnTop 构造参数只在创建时生效，运行中设置页改开关
+   *      必须显式调用 setAlwaysOnTop；win32 还要指定 normal 层级，否则可能被
+   *      系统判为最高层级、关不掉。
+   * @param enabled 是否置顶
+   */
+  applyAlwaysOnTop(enabled) {
+    if (!this.win) return;
+    if (process.platform === "win32") {
+      this.win.setAlwaysOnTop(enabled, "normal");
+    } else {
+      this.win.setAlwaysOnTop(enabled);
+    }
   }
   /**
    * 窗口关闭回调：解绑渲染进程与股票服务，并移除配置变更监听，避免内存泄漏。
@@ -1654,13 +1670,16 @@ var IndexWindow = class extends AppWindow {
   }
   /**
    * 配置变更处理：更新窗口不透明度，并把新配置及变更的 key 数组转发给渲染层。
-   * 若 hideSwitch（贴边隐藏开关）发生变化且被关闭，则先把窗口唤出到正常位置。
+   * alwaysOnTop 变化时即时应用；hideSwitch（贴边隐藏开关）被关闭时先把窗口唤出到正常位置。
    * @param config 变更后的配置对象
    * @param diffKeys 发生变更的配置 key 数组
    */
   handleConfigChanged(config, diffKeys) {
     this.win?.setOpacity(local_store_default.alpha);
     this.win?.webContents?.send("app-config", config, diffKeys);
+    if (Array.isArray(diffKeys) && diffKeys.indexOf("alwaysOnTop") >= 0) {
+      this.applyAlwaysOnTop(config.alwaysOnTop !== false);
+    }
     if (diffKeys[0] == "hideSwitch") {
       if (config.hideSwitch == false) {
         this.showIfOnScreenBorder();
@@ -2523,8 +2542,7 @@ function regiserIpcChannel() {
     } else if (command == "uploadLogs") {
       return await logger_default.compressAndSend();
     } else if (command == "isAeroGlassEnabled") {
-      const sp = import_electron11.systemPreferences;
-      return typeof sp.isAeroGlassEnabled === "function" ? sp.isAeroGlassEnabled() : false;
+      return true;
     } else if (command == "shortCut") {
       let newShortCuts = {};
       let shortCuts = local_store_default.config.shortCuts;

@@ -73,6 +73,7 @@ export class Config {
     chartBounds: any = null;               // 图表窗口位置
     hideSwitch: boolean = true;            // 是否启用「贴边自动隐藏」
     windowTransparent: boolean = false;    // 是否透明窗口
+    alwaysOnTop: boolean = true;           // 是否始终置顶（设置页「窗口置顶」开关，默认开）
     openAtLogin: boolean = true;           // 是否开机自启
 
     // ===== 自选股数据 =====

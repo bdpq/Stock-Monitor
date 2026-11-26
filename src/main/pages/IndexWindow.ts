@@ -37,11 +37,13 @@ export class IndexWindow extends AppWindow {
      * 配置主面板窗口外观。
      * why：
      *   - 无边框(frame=false) + 透明/无阴影 + 不显示任务栏(skipTaskbar=true) = 悬浮看盘面板；
-     *   - alwaysOnTop=true 使面板始终置顶于其他窗口之上，便于盯盘。
+     *   - alwaysOnTop 由设置页开关决定，默认 true（便于盯盘），关闭后不再抢焦点；
+     *     旧版写死 true 会导致设置页关掉开关后窗口依然置顶。
      * @param options 待修改的窗口构造参数
      */
     configWindow(options: Electron.BrowserWindowConstructorOptions): void {
-        options.alwaysOnTop = true;       // 始终置顶
+        //旧配置可能没有该字段，缺失时按默认开启处理
+        options.alwaysOnTop = appConfig.config.alwaysOnTop !== false;
         options.center = false;           // 不自动居中（位置由 bounds 决定）
         options.frame = false;            // 无边框
         options.skipTaskbar = true;       // 不显示在任务栏
@@ -84,7 +86,7 @@ export class IndexWindow extends AppWindow {
      *   - attachWebContents 将渲染进程绑定到股票服务，使其能接收行情推送/图表数据；
      *   - 监听 appConfig 的 onConfig 事件，把配置变更转发到渲染层；
      *   - 创建时把 cfg.bounds 置 null，让下次启动重新计算默认位置（避免脏数据）；
-     *   - win32 平台强制设置置顶层级为 normal；
+     *   - win32 平台按配置设置置顶（normal 层级），关掉开关则不置顶；
      *   - 设置窗口不透明度为配置的 alpha 值，再加载 "/" 路由渲染主面板。
      */
     onWindowCreated(win: Electron.CrossProcessExports.BrowserWindow): void {
@@ -98,12 +100,26 @@ export class IndexWindow extends AppWindow {
         //清空本窗口的持久化 bounds，使位置由首次默认逻辑决定
         appConfig.editWith((cfg) => { cfg.bounds = null })
 
-        //Windows 平台下显式设置置顶层级为 normal
-        if(process.platform=="win32"){
-            win.setAlwaysOnTop(true,"normal")
-        }
+        //Windows 平台下显式设置置顶层级为 normal；开关关闭时同步取消置顶
+        this.applyAlwaysOnTop(appConfig.config.alwaysOnTop !== false)
         win.setOpacity(appConfig.alpha)
         win.loadWithRoute("/")
+    }
+
+    /**
+     * 把「窗口置顶」开关应用到实际窗口。
+     * why：Electron 的 alwaysOnTop 构造参数只在创建时生效，运行中设置页改开关
+     *      必须显式调用 setAlwaysOnTop；win32 还要指定 normal 层级，否则可能被
+     *      系统判为最高层级、关不掉。
+     * @param enabled 是否置顶
+     */
+    private applyAlwaysOnTop(enabled: boolean): void {
+        if (!this.win) return
+        if (process.platform === "win32") {
+            this.win.setAlwaysOnTop(enabled, "normal")
+        } else {
+            this.win.setAlwaysOnTop(enabled)
+        }
     }
 
     /**
@@ -136,13 +152,18 @@ export class IndexWindow extends AppWindow {
 
     /**
      * 配置变更处理：更新窗口不透明度，并把新配置及变更的 key 数组转发给渲染层。
-     * 若 hideSwitch（贴边隐藏开关）发生变化且被关闭，则先把窗口唤出到正常位置。
+     * alwaysOnTop 变化时即时应用；hideSwitch（贴边隐藏开关）被关闭时先把窗口唤出到正常位置。
      * @param config 变更后的配置对象
      * @param diffKeys 发生变更的配置 key 数组
      */
     handleConfigChanged(config: Config,diffKeys:any): void {
         this.win?.setOpacity(appConfig.alpha)
         this.win?.webContents?.send("app-config", config,diffKeys);
+
+        //窗口置顶开关：设置页保存后立即生效，不必重启
+        if (Array.isArray(diffKeys) && diffKeys.indexOf('alwaysOnTop') >= 0) {
+            this.applyAlwaysOnTop(config.alwaysOnTop !== false)
+        }
 
         //仅当贴边隐藏开关变化时处理
         if(diffKeys[0]=="hideSwitch"){

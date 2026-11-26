@@ -1,14 +1,19 @@
 /**
- * 渲染层补丁注入与校验（幂等）。
+ * 渲染层补丁注入与校验（幂等、多块）。
  *
  * 渲染层 Vue 源码已不可恢复（没有 sourcemap），dist/renderer/*.js 属于
- * 冻结产物。可维护的部分放在 src/renderer/patches/：
- *   - drag-sort.js：自选股拖拽排序脚本，注入到 index.html
- *   - 两处文案替换规则（见下方 textPatches）
- *   - doctor.*.js 的备份 UI 是压缩过的 Vue render function，只能冻结保留
+ * 冻结产物。可维护的部分放在 src/renderer/patches/，由本脚本注入到 index.html：
+ *   - drag-sort.js    → <body> 尾部，自选股拖拽排序
+ *   - transparent.css → <head> 末尾，极简纯透明样式
+ *   - transparent.js  → <body> 尾部，透明开关（跟随 backAlpha）
+ * 另有两处文案替换规则（见下方 textPatches）。
+ * doctor.*.js 的备份 UI 是压缩过的 Vue render function，只能冻结保留。
  *
  *   node scripts/inject-renderer.mjs            # 应用补丁
  *   node scripts/inject-renderer.mjs --check    # 只校验，不修改
+ *
+ * --check 会逐块比对「注入内容」与「补丁源文件」是否一致，防止手改 index.html
+ * 造成源码与产物漂移。
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -18,8 +23,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const checkOnly = process.argv.includes('--check')
 const rendererDir = path.join(root, 'dist/renderer')
 const patchDir = path.join(root, 'src/renderer/patches')
-const START = '<!-- sm:drag-sort:start -->'
-const END = '<!-- sm:drag-sort:end -->'
+const htmlPath = path.join(rendererDir, 'index.html')
 
 let failed = 0
 function report(name, state, detail = '') {
@@ -27,25 +31,49 @@ function report(name, state, detail = '') {
   if (!state) failed++
 }
 
-// 1. 拖拽排序脚本：始终以 src/renderer/patches/drag-sort.js 为唯一来源
-const dragSource = fs.readFileSync(path.join(patchDir, 'drag-sort.js'), 'utf8').trim()
-const htmlPath = path.join(rendererDir, 'index.html')
 let html = fs.readFileSync(htmlPath, 'utf8')
-const marked = html.includes(START) && html.includes(END)
 
-if (checkOnly) {
-  report('index.html 拖拽排序脚本', marked && html.includes('sm-drop-before'), marked ? '标记块存在' : '缺少注入标记块')
-} else {
+/**
+ * 通用幂等注入：每块用 <!-- sm:<name>:start/end --> 包裹。
+ * tag = style 时进 </head> 前，tag = script 时进 </body> 前。
+ */
+function injectBlock({ name, tag, sourceFile, label }) {
+  const START = `<!-- sm:${name}:start -->`
+  const END = `<!-- sm:${name}:end -->`
+  const source = fs.readFileSync(path.join(patchDir, sourceFile), 'utf8').trim()
+  const expected = `${START}\n<${tag}>\n${source}\n</${tag}>\n${END}`
+  const marked = html.includes(START) && html.includes(END)
+  const anchor = tag === 'style' ? '</head>' : '</body>'
+
+  if (checkOnly) {
+    const anchored = tag === 'style'
+      ? html.indexOf(START) < html.indexOf('</head>')
+      : html.indexOf(START) > html.indexOf('<body>')
+    report(label, marked && html.includes(source) && anchored,
+      marked ? (html.includes(source) ? '内容与源文件一致' : '内容与源文件不一致') : '缺少注入标记块')
+    return
+  }
+
+  // 先清旧块（含内容），再清历史遗留的无标记裸脚本，最后按锚点插入
   html = html.replace(new RegExp(`${START}[\\s\\S]*?${END}\\s*`, 'g'), '')
-  html = html.replace(/<script>\s*\/\* 自选股拖拽排序[\s\S]*?<\/script>\s*/g, '')
-  const block = `${START}\n<script>\n${dragSource}\n</script>\n${END}\n`
-  if (!html.includes('</body>')) throw new Error('index.html 中找不到 </body>')
-  html = html.replace('</body>', block + '</body>')
-  fs.writeFileSync(htmlPath, html, 'utf8')
-  report('index.html 拖拽排序脚本', true, '已由 drag-sort.js 注入')
+  if (tag === 'script' && name === 'drag-sort') {
+    html = html.replace(/<script>\s*\/\* 自选股拖拽排序[\s\S]*?<\/script>\s*/g, '')
+  }
+  if (!html.includes(anchor)) throw new Error(`index.html 中找不到 ${anchor}`)
+  html = html.replace(anchor, expected + '\n' + anchor)
+  report(label, true, `已由 ${sourceFile} 注入`)
 }
 
-// 2. 压缩产物里的文案替换规则（字符串是 JS 源码中的 \uXXXX 字面量）
+const blocks = [
+  { name: 'transparent-css', tag: 'style', sourceFile: 'transparent.css', label: 'index.html 极简纯透明样式' },
+  { name: 'drag-sort', tag: 'script', sourceFile: 'drag-sort.js', label: 'index.html 拖拽排序脚本' },
+  { name: 'transparent-js', tag: 'script', sourceFile: 'transparent.js', label: 'index.html 透明开关脚本' },
+]
+for (const block of blocks) injectBlock(block)
+
+if (!checkOnly) fs.writeFileSync(htmlPath, html, 'utf8')
+
+// 压缩产物里的文案替换规则（字符串是 JS 源码中的 \uXXXX 字面量）
 const textPatches = [
   {
     file: 'index.237cad89.js',
@@ -58,6 +86,13 @@ const textPatches = [
     from: 'name:"\\u7F51\\u7EDC\\u8BCA\\u65AD"',
     to: 'name:"\\u5907\\u4EFD\\u914D\\u7F6E"',
     label: 'doctor 路由名称 → 备份配置',
+  },
+  // 设置页原文案把「置顶」误写成「置页」，压缩产物里是 \uXXXX 字面量，只能字符串替换
+  {
+    file: 'general.2002cfc8.js',
+    from: '\\u7A97\\u53E3\\u7F6E\\u9875',
+    to: '\\u7A97\\u53E3\\u7F6E\\u9876',
+    label: '设置项文案 → 窗口置顶',
   },
 ]
 
@@ -78,7 +113,7 @@ for (const rule of textPatches) {
   report(rule.label, good, checkOnly ? (applied ? '补丁已应用' : '补丁缺失') : (pending ? '已替换' : '已是最新'))
 }
 
-// 3. 冻结产物：doctor 组件与主进程补丁
+// 冻结产物：doctor 组件与主进程补丁
 const doctorPath = path.join(rendererDir, 'doctor.63ab51ad.js')
 const doctor = fs.existsSync(doctorPath) ? fs.readFileSync(doctorPath, 'utf8') : ''
 report('doctor 备份/恢复 UI（冻结产物）', doctor.includes('backupConfig') && doctor.includes('restoreConfig'), '仅校验，不重新生成')
@@ -100,6 +135,13 @@ const mainChecks = [
   ['设备 ID 读取容错（注册表不可用时）', () => main.includes('safeMachineId') && main.includes('randomUUID')],
   ['托盘图标使用 logo.png', () => main.includes('"logo.png"') && !main.includes('assetsPath')],
   ['启动阶段容错（任一初始化失败仍显示主窗）', () => main.includes('safeInit') && main.includes('whenReady failed')],
+  // 背景透明度闸门：Electron 40 移除了 isAeroGlassEnabled，若返回 false 会把设置页
+  // backAlpha 写入拦死（提示"不支持背景透明度调整"），纯透明补丁也就收不到信号。
+  ['背景透明度闸门恒真（isAeroGlassEnabled）', () => /isAeroGlassEnabled"\)\s*\{\s*return true/.test(main)],
+  // 窗口置顶开关：曾只写配置不应用到窗口，且创建时写死 true，关掉仍置顶
+  ['窗口置顶开关有默认配置字段', () => /alwaysOnTop\s*=\s*true/.test(main)],
+  ['窗口置顶开关即时应用到窗口', () => main.includes('applyAlwaysOnTop(config.alwaysOnTop') && /setAlwaysOnTop\(enabled,\s*["\x27]normal/.test(main)],
+  ['窗口创建不再写死置顶', () => !/options\.alwaysOnTop\s*=\s*true\s*;/.test(main)],
 ]
 for (const [label, check] of mainChecks) report(label, check())
 

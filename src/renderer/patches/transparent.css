@@ -1,0 +1,66 @@
+/*
+ * 极简纯透明补丁（可回退）
+ *
+ * 目标：主面板只显示「文字 + 图标」，去掉一切背景色块，不加模糊/高光/描边。
+ *
+ * 生效条件：html.sm-transparent 类，由 transparent.js 根据配置项 backAlpha 决定。
+ *   - 用户把设置页「背景透明度」拉到最低（backAlpha <= 10）→ 加类，纯透明生效；
+ *   - 调回任意不透明值 → 移除类，界面 100% 恢复原样。
+ *
+ * 作用域：全部规则限制在 #table（主面板）内，设置页 / 弹层 / 其它窗口完全不受影响。
+ * 只改 background* 与表格底色变量，不碰 color / 涨跌幅红绿 / 边框 / 图标。
+ */
+
+/* 1. 面板根：内联 style 的 background 必须用 !important 才能盖掉 */
+html.sm-transparent #table {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+}
+
+/*
+ * 2. Element Plus 表格：Vue  prop 与 CSS 变量写死了白底
+ *    --el-fill-color-blank = #ffffff 是行/表头的源头，这里在面板内就地改掉。
+ */
+html.sm-transparent #table {
+    --el-fill-color-blank: transparent !important;
+    --el-fill-color-light: transparent !important;
+    --el-bg-color: transparent !important;
+    --el-bg-color-overlay: transparent !important;
+    --el-table-tr-bg-color: transparent !important;
+    --el-table-header-bg-color: transparent !important;
+    --el-table-row-hover-bg-color: transparent !important;
+    --el-table-current-row-bg-color: transparent !important;
+}
+
+html.sm-transparent #table .el-table,
+html.sm-transparent #table .el-table__inner-wrapper,
+html.sm-transparent #table .el-table tr,
+html.sm-transparent #table .el-table th.el-table__cell,
+html.sm-transparent #table .el-table td.el-table__cell,
+html.sm-transparent #table .el-table__cell,
+html.sm-transparent #table .el-table__header-wrapper,
+html.sm-transparent #table .el-table__body-wrapper,
+html.sm-transparent #table .el-table__fixed,
+html.sm-transparent #table .el-table__fixed-right {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+}
+
+/* 3. 悬停 / 选中行：Element Plus 默认给浅灰底，这里一并抹掉 */
+html.sm-transparent #table .el-table__body tr:hover > td.el-table__cell,
+html.sm-transparent #table .el-table__body tr.current-row > td.el-table__cell,
+html.sm-transparent #table .el-table__row:hover,
+html.sm-transparent #table .el-table__cell:hover {
+    background-color: transparent !important;
+}
+
+/* 4. 分组栏 / 底部工具条：同样带内联背景，去掉后只剩按钮文字与图标 */
+html.sm-transparent #table #groupsbox,
+html.sm-transparent #table #groupsbox .el-button,
+html.sm-transparent #table #groupsbox .el-tag {
+    background: transparent !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+}
