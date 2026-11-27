@@ -1504,7 +1504,7 @@ import_electron5.ipcMain.on("fetch-stock", () => {
   }
 });
 var configLister = (config, diffKeys) => {
-  if (diffKeys.indexOf("keys") >= 0 || diffKeys.indexOf("token") >= 0) {
+  if (diffKeys.indexOf("keys") >= 0 || diffKeys.indexOf("token") >= 0 || diffKeys.indexOf("cost") >= 0) {
     _scheduleNext(true);
   }
 };

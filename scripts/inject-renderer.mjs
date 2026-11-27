@@ -6,7 +6,8 @@
  *   - drag-sort.js    → <body> 尾部，自选股拖拽排序
  *   - transparent.css → <head> 末尾，极简纯透明样式
  *   - transparent.js  → <body> 尾部，透明开关（跟随 backAlpha）
- * 另有两处文案替换规则（见下方 textPatches）。
+ *   - trade.js        → <body> 尾部，「更多」弹窗的买入/卖出录入（仅 #/cost）
+ * 另有若干压缩产物的文案/样式替换规则（见下方 textPatches）。
  * doctor.*.js 的备份 UI 是压缩过的 Vue render function，只能冻结保留。
  *
  *   node scripts/inject-renderer.mjs            # 应用补丁
@@ -68,6 +69,7 @@ const blocks = [
   { name: 'transparent-css', tag: 'style', sourceFile: 'transparent.css', label: 'index.html 极简纯透明样式' },
   { name: 'drag-sort', tag: 'script', sourceFile: 'drag-sort.js', label: 'index.html 拖拽排序脚本' },
   { name: 'transparent-js', tag: 'script', sourceFile: 'transparent.js', label: 'index.html 透明开关脚本' },
+  { name: 'trade', tag: 'script', sourceFile: 'trade.js', label: 'index.html 更多弹窗买入/卖出输入' },
 ]
 for (const block of blocks) injectBlock(block)
 
@@ -169,6 +171,8 @@ const mainChecks = [
   // 盈亏文字透明度 / 合计行背景
   ['盈亏文字不再写死纯色', () => !indexJs.includes('e.color="#f56c6c"') && !indexJs.includes('e.color="#67c23a"')],
   ['合计行背景跟随背景透明度', () => indexJs.includes('var(--sm-sum-bg') && html.includes('--sm-sum-bg')],
+  // 买入/卖出录入后必须立即重算盈亏，否则总盈亏/当日盈亏/合计要等下一轮轮询才变
+  ['成本变更立即刷新盈亏', () => /diffKeys\.indexOf\(["\x27]cost["\x27]\)\s*>=\s*0/.test(main)],
 ]
 for (const [label, check] of mainChecks) report(label, check())
 

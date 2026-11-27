@@ -17,6 +17,7 @@
 | 图表 | ECharts 分时图、日 K 线（前复权，180 日）、分钟 K 线 |
 | 自选股管理 | 添加 / 删除 / 置顶、别名备注、首列拖拽排序、分组 |
 | 成本与提醒 | 成本价、持仓金额、盈亏估算、上下破价提醒 |
+| 交易录入 | 右键「更多」弹窗内录入买入/卖出数量与价格，自动更新持仓与成本，主面板盈亏/合计即时同步 |
 | 窗口 | 无边框、置顶可开关、透明度、贴边隐藏、开机自启、全局快捷键（老板键 Alt + 反引号） |
 | 极简纯透明 | 把「背景透明度」拉到最低，面板只剩文字与图标（可随时拉回恢复） |
 | 配色跟随 | 文字透明度同时作用于盈亏红绿；合计行背景跟随背景透明度，不再恒透明 |
@@ -32,6 +33,7 @@
 | 云端 API 全部 stub：登录 / 支付 / 统计 / 邀请 / 代理 / 异常上报 | `src/main/api/codffect.ts` |
 | 关闭日志落盘与统计上报 | `src/main/service/logger.ts`、`src/main/service/statistic.ts` |
 | 拖拽排序 IPC `api/sortKeys` | `src/main/index.ts`、`src/main/service/index.ts` + `src/renderer/patches/drag-sort.js` |
+| 买入/卖出录入与盈亏即时同步 | `src/renderer/patches/trade.js` + `src/main/service/stock.ts`（`cost` 变更触发重算） |
 | 配置备份 / 恢复 IPC `api/backupConfig`、`api/restoreConfig` | `src/main/index.ts` + `dist/renderer/doctor.*.js`（冻结 UI） |
 
 ## 📡 数据源

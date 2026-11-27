@@ -6,7 +6,7 @@
 `.vue` 单文件组件已无法还原。因此渲染层按「冻结产物 + 外挂补丁」维护：
 
 - 冻结产物：`dist/renderer/` 下所有 `*.js`、`*.css`、图片，`index.html` 的骨架。
-- 可维护源码：本目录下的 `drag-sort.js`、`transparent.css`、`transparent.js`，以及 `scripts/inject-renderer.mjs` 里的文案替换规则。
+- 可维护源码：本目录下的 `drag-sort.js`、`transparent.css`、`transparent.js`、`trade.js`，以及 `scripts/inject-renderer.mjs` 里的文案替换规则。
 - 由脚本保证幂等：重复运行不会产生重复内容，`--check` 会逐块比对注入内容与源文件是否一致，防止手改 `index.html` 造成漂移。
 
 ## 补丁清单
@@ -29,6 +29,8 @@
 | 14 | 主进程窗口置顶 | 按 `alwaysOnTop` 配置创建窗口，设置页切换时 `setAlwaysOnTop` 即时生效 | `IndexWindow.ts` + `local_store.ts` |
 | 15 | `dist/renderer/index.8cbe8649.js` | classic 主题下盈亏红/绿写死纯色 → `p(color, textAlpha)`，文字透明度可调 | 注入脚本替换规则 |
 | 16 | `dist/renderer/index.8cbe8649.js` | 合计行容器补 `backgroundColor: var(--sm-sum-bg)`，跟随背景透明度 | 注入脚本替换规则 + `transparent.js` 同步变量 |
+| 17 | `dist/renderer/index.html`（`#/cost` 弹窗） | 买入/卖出数量与价格录入，写入 `cost`；买入按加权均价、卖出只减持仓；保存后 `emit('reload')` 让弹窗数量/成本价即时刷新 | `trade.js` |
+| 18 | `src/main/service/stock.ts` | `cost` 变更立即重算并推送 `stock-update`，盈亏/合计同步刷新 | `configLister` + `check:patches` 防回退 |
 
 补丁 2/3/4 对应的主进程实现在 `src/main/index.ts`，补丁 1 的服务端实现在
 `src/main/service/index.ts` 的 `sortKeys()`。
@@ -53,6 +55,8 @@ npm run build:main       # 从 src/ 重建主进程与 preload 产物
 - 改窗口置顶行为：只改 `src/main/pages/IndexWindow.ts`，然后 `npm run build:main`；`check:patches` 有三条防回退校验（默认字段 / 即时应用 / 不写死 true）。
 - 改盈亏文字颜色：压缩产物里 classic 主题写死 `e.color="#f56c6c"/"#67c23a"`，替换规则改成 `p(color, i.textAlpha)` 才跟随滑条；涨跌幅列原本就是后者，别改回去。
 - 合计行背景：它是表格外的独立 div，本身没有背景；`transparent.js` 把 `#table` 当前背景同步到 `--sm-sum-bg`（在去重之前，保证只改颜色也更新），容器样式引用该变量。
+- 改交易录入：编辑 `trade.js` → `npm run build:renderer`。脚本只在 `location.hash` 以 `#/cost` 开头时生效，复用窗口换股票靠 `ipc.on('reload')` 更新 key。买入同时传 `price`+`amount`（刷新成本基准日），卖出只传 `amount`（保留成本价与基准日）；同步刷新依赖 `src/main/service/stock.ts` 的 `configLister` 包含 `cost`，改主进程后要 `npm run build:main`。
+- 弹窗自身数量/成本价同步：`set_cost` 写入后弹窗的 Vue ref（`y.value`/`k.value`）不会自动变，必须在 `submit()` 成功后 `ipc.emit('reload', {}, key)`——这与主进程 `SetCostWindow.reload()` 的 `webContents.send("reload", key)` 同通道，弹窗的 `ipcRenderer.on("reload")` 收到后会重跑 `R()` 从 config 读回。「股票数量(股)」是 `<button class="setbt" prop="amount">` 而非 `<input>`，别按 input 去找。
 - 新增渲染层功能：优先写成注入脚本（DOM 层）或新增独立窗口（主进程侧），
   不要直接手写压缩后的 Vue render function。
 - 若将来拿到原始 `.vue` 源码，应引入 Vite 重新构建整个 `dist/renderer/`，

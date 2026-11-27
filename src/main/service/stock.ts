@@ -323,9 +323,11 @@ ipcMain.on("fetch-stock", () => {
     }
 });
 
-// 配置变更监听：自选股列表(keys)或登录态(token)变化时，立即强制刷新一次
+// 配置变更监听：自选股列表(keys)、登录态(token)或成本/持仓(cost)变化时，立即强制刷新一次。
+// cost 分支用于「更多」弹窗的买入/卖出录入：set_cost 保存后马上按新成本重算并推送
+// stock-update，主面板的总盈亏/当日盈亏/合计因此同步刷新，不必等下一轮轮询。
 const configLister = (config: Config, diffKeys: any) => {
-    if (diffKeys.indexOf('keys') >= 0 || diffKeys.indexOf('token') >= 0) {
+    if (diffKeys.indexOf('keys') >= 0 || diffKeys.indexOf('token') >= 0 || diffKeys.indexOf('cost') >= 0) {
         _scheduleNext(true)
     }
 }
