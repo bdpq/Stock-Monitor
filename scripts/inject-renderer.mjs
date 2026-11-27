@@ -94,6 +94,28 @@ const textPatches = [
     to: '\\u7A97\\u53E3\\u7F6E\\u9876',
     label: '设置项文案 → 窗口置顶',
   },
+  // classic 主题下总盈亏/当日盈亏/合计金额写死纯色，不跟随「文字透明度」滑条；
+  // 涨跌幅列原本就用 p(color, textAlpha)，这里把同类逻辑补齐。
+  {
+    file: 'index.8cbe8649.js',
+    from: 'e.color="#f56c6c"',
+    to: 'e.color=p("#f56c6c",i.textAlpha)',
+    label: '盈亏红色跟随文字透明度',
+  },
+  {
+    file: 'index.8cbe8649.js',
+    from: 'e.color="#67c23a"',
+    to: 'e.color=p("#67c23a",i.textAlpha)',
+    label: '盈亏绿色跟随文字透明度',
+  },
+  // 合计行是表格外的独立 div，容器样式没有 background，永远透出桌面；
+  // 用 CSS 变量接收 transparent.js 从 #table 同步来的背景色，跟随「背景透明度」。
+  {
+    file: 'index.8cbe8649.js',
+    from: 'qe={key:4,style:{"font-size":"10px",padding:"2px","text-align":"right","margin-right":"5px"}}',
+    to: 'qe={key:4,style:{"font-size":"10px",padding:"2px","text-align":"right","margin-right":"5px",backgroundColor:"var(--sm-sum-bg, rgba(0,0,0,0))"}}',
+    label: '合计行背景跟随背景透明度',
+  },
 ]
 
 for (const rule of textPatches) {
@@ -120,6 +142,8 @@ report('doctor 备份/恢复 UI（冻结产物）', doctor.includes('backupConfi
 
 const mainPath = path.join(root, 'dist/main/index.cjs')
 const main = fs.existsSync(mainPath) ? fs.readFileSync(mainPath, 'utf8') : ''
+const indexJsPath = path.join(rendererDir, 'index.8cbe8649.js')
+const indexJs = fs.existsSync(indexJsPath) ? fs.readFileSync(indexJsPath, 'utf8') : ''
 const mainChecks = [
   ['主进程产物包含 sortKeys', () => main.includes('sortKeys')],
   ['主进程产物包含 backupConfig', () => main.includes('backupConfig')],
@@ -142,6 +166,9 @@ const mainChecks = [
   ['窗口置顶开关有默认配置字段', () => /alwaysOnTop\s*=\s*true/.test(main)],
   ['窗口置顶开关即时应用到窗口', () => main.includes('applyAlwaysOnTop(config.alwaysOnTop') && /setAlwaysOnTop\(enabled,\s*["\x27]normal/.test(main)],
   ['窗口创建不再写死置顶', () => !/options\.alwaysOnTop\s*=\s*true\s*;/.test(main)],
+  // 盈亏文字透明度 / 合计行背景
+  ['盈亏文字不再写死纯色', () => !indexJs.includes('e.color="#f56c6c"') && !indexJs.includes('e.color="#67c23a"')],
+  ['合计行背景跟随背景透明度', () => indexJs.includes('var(--sm-sum-bg') && html.includes('--sm-sum-bg')],
 ]
 for (const [label, check] of mainChecks) report(label, check())
 

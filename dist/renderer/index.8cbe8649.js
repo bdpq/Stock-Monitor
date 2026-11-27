@@ -41,7 +41,7 @@ const W=A=>(o.pushScopeId("data-v-a1d86ae8"),A=A(),o.popScopeId(),A),
 Me=W(()=>o.createBaseVNode("canvas",{id:"measures",style:{display:"none"}},null,-1)),
 Te={key:0,id:"loading"},
 We={key:3},
-Pe=["onClick"],qe={key:4,style:{"font-size":"10px",padding:"2px","text-align":"right","margin-right":"5px"}},
+Pe=["onClick"],qe={key:4,style:{"font-size":"10px",padding:"2px","text-align":"right","margin-right":"5px",backgroundColor:"var(--sm-sum-bg, rgba(0,0,0,0))"}},
 Ie=W(()=>o.createBaseVNode("span",null,"\u5408\u8BA1",-1)),
 He=W(()=>o.createBaseVNode("span",{style:{"margin-left":"5px"}},"\u603B:",-1)),
 $e=W(()=>o.createBaseVNode("span",{style:{"margin-left":"5px"}},"\u5F53\u65E5:",-1)),
@@ -52,16 +52,16 @@ Ge=o.defineComponent({
     __name:"index",
     setup(A){
 function pe(){var e,n;let t={};if(b){let r=(n=(e=b.value)==null?void 0:e.getElementsByClassName("el-table__body")[0].clientWidth)!=null?n:300;t.width=r+"px"}else t.display="none";return t["overflow-x"]="hidden",t.display="inline-block",t["white-space"]="nowrap",t}
-function O(t){let e={};return t=="d"?v&&v.value=="classic"?N.fvalue>0?e.color="#f56c6c":N.fvalue<0&&(e.color="#67c23a"):e.color=p(i.textColorNew,i.textAlpha):v&&v.value=="classic"?S.fvalue>0?e.color="#f56c6c":S.fvalue<0&&(e.color="#67c23a"):e.color=p(i.textColorNew,i.textAlpha),e}const y=o.ref([]);window.onerror=function(t,e,n,r,l){let a="indexWindow:"+t+"|e|"+e+"|s|"+n+"|l|"+r+"|c|"+l+"|e|"+(l==null?void 0:l.stack);u.ipcRenderer.invoke("api","exception",a),console.log(a)},u.ipcRenderer.send("statistic","Home.IM",null);
+function O(t){let e={};return t=="d"?v&&v.value=="classic"?N.fvalue>0?e.color=p("#f56c6c",i.textAlpha):N.fvalue<0&&(e.color=p("#67c23a",i.textAlpha)):e.color=p(i.textColorNew,i.textAlpha):v&&v.value=="classic"?S.fvalue>0?e.color=p("#f56c6c",i.textAlpha):S.fvalue<0&&(e.color=p("#67c23a",i.textAlpha)):e.color=p(i.textColorNew,i.textAlpha),e}const y=o.ref([]);window.onerror=function(t,e,n,r,l){let a="indexWindow:"+t+"|e|"+e+"|s|"+n+"|l|"+r+"|c|"+l+"|e|"+(l==null?void 0:l.stack);u.ipcRenderer.invoke("api","exception",a),console.log(a)},u.ipcRenderer.send("statistic","Home.IM",null);
 function fe(t){if(t.key){let e=i.alertsKey;e[t.key]=!0,u.ipcRenderer.invoke("config","set_reload",{alertsKey:e})}}
 function U(t,e){var n=document.querySelector("#measures"),r=n.getContext("2d");r.font=e;var l=r.measureText(t);return l.width}
 function G(t){if(!i||y.value.length==0)return 0;let e=i.fontSize,n=null,r=y.value;for(let l=0;l<r.length;l++){let a=r[l].stock;if(!a){console.log("stock error:"),console.log(r[l]);continue}if(t=="name"){let d=U(J(a.key,a.name),e);(n==null||d<n)&&(n=d)}else{let d=U(c(t,a),e);(n==null||d<n)&&(n=d)}}return n==null&&(n=50),n+=4,n}
 function ve(t){let e={"max-width":"800px","min-width":"10px","font-size":m.value,"line-height":m.value};return e.padding="1 1 1 1",e["border-bottom"]="none",i&&(e.backgroundColor=p(i.backColorNew,i.backAlpha),e.color=p(i.textColorNew,i.textAlpha)),e}
 function me(t){if(!t.row.stock)return null;let e={"max-width":"800px","min-width":"10px","font-size":m.value,"line-height":m.value};
 if(e["border-bottom"]="none",!i)return e;
-if(t.column.label=="\u5F53\u65E5\u76C8\u4E8F")v&&v.value=="classic"?t.row.stock.dayProfite>0?e.color="#f56c6c":t.row.stock.dayProfite<0&&(e.color="#67c23a"):e.color=p(i.textColorNew,i.textAlpha);
+if(t.column.label=="\u5F53\u65E5\u76C8\u4E8F")v&&v.value=="classic"?t.row.stock.dayProfite>0?e.color=p("#f56c6c",i.textAlpha):t.row.stock.dayProfite<0&&(e.color=p("#67c23a",i.textAlpha)):e.color=p(i.textColorNew,i.textAlpha);
 else if(t.column.label=="\u6DA8\u8DCC\u5E45")v&&v.value=="classic"?t.row.stock.per>0?e.color=p("#f56c6c",i.textAlpha):t.row.stock.per<0?e.color=p("#67c23a",i.textAlpha):e.color=p("#e9e9eb",i.textAlpha):e.color=p(i.textColorNew,i.textAlpha);
-else if(t.column.label=="\u603B\u76C8\u4E8F"&&i){let n=i.cost[t.row.stock.key];n&&v&&v.value=="classic"?t.row.stock.price>n.price?e.color="#f56c6c":t.row.stock.price<n.price&&(e.color="#67c23a"):e.color=p(i.textColorNew,i.textAlpha)}else e.color=p(i.textColorNew,i.textAlpha);return e.padding="1 1 1 1",e.backgroundColor=p(i.backColorNew,i.backAlpha),e}
+else if(t.column.label=="\u603B\u76C8\u4E8F"&&i){let n=i.cost[t.row.stock.key];n&&v&&v.value=="classic"?t.row.stock.price>n.price?e.color=p("#f56c6c",i.textAlpha):t.row.stock.price<n.price&&(e.color=p("#67c23a",i.textAlpha)):e.color=p(i.textColorNew,i.textAlpha)}else e.color=p(i.textColorNew,i.textAlpha);return e.padding="1 1 1 1",e.backgroundColor=p(i.backColorNew,i.backAlpha),e}
 function J(t,e){if(i){let n=i.alias[t];return n||e}else return e}
 function c(t,e){if(!i||!e)return"-";let n=2;if((e.extra=="ETF"||e.extra=="QDII-ETF")&&(n=3),t=="per"&&e.per!=null&&e.price!=null)return(e.per*100).toFixed(2)+"%";
 if(t=="price"&&e.price)return e.price.toFixed(n);if(t=="preClose"&&e.preClose)return e.preClose.toFixed(n);if(t=="dayMax"&&e.dayMax)return e.dayMax.toFixed(n);

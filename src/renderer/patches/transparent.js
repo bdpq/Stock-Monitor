@@ -35,6 +35,13 @@
     // 等表格出现后再读到同一个值会被「值未变」去重直接跳过，导致类永远加不上。
     var table = document.getElementById('table');
     if (!table) return; // 设置页等没有主面板的窗口：不记录、不挂类
+
+    // 合计行容器（表格外的独立 div）没有自己的内联背景，原本恒透明；
+    // 这里把 #table 当前的背景色同步成 CSS 变量，让它跟随「背景透明度」滑条。
+    // 必须在去重之前执行，否则只改背景色、alpha 不变时不会更新。
+    var bg = table.style.background || table.style.backgroundColor || '';
+    if (bg) document.documentElement.style.setProperty('--sm-sum-bg', bg);
+
     if (alpha === lastAlpha) return;
     lastAlpha = alpha;
     if (alpha <= THRESHOLD) document.documentElement.classList.add(cls);

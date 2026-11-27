@@ -27,6 +27,8 @@
 | 12 | 透明开关 | `backAlpha <= 10` 时给 `<html>` 加 `sm-transparent` 类，滑条拉回即移除 | `transparent.js` |
 | 13 | `dist/renderer/general.2002cfc8.js` | 设置项错别字「窗口置页」→「窗口置顶」 | 注入脚本替换规则 |
 | 14 | 主进程窗口置顶 | 按 `alwaysOnTop` 配置创建窗口，设置页切换时 `setAlwaysOnTop` 即时生效 | `IndexWindow.ts` + `local_store.ts` |
+| 15 | `dist/renderer/index.8cbe8649.js` | classic 主题下盈亏红/绿写死纯色 → `p(color, textAlpha)`，文字透明度可调 | 注入脚本替换规则 |
+| 16 | `dist/renderer/index.8cbe8649.js` | 合计行容器补 `backgroundColor: var(--sm-sum-bg)`，跟随背景透明度 | 注入脚本替换规则 + `transparent.js` 同步变量 |
 
 补丁 2/3/4 对应的主进程实现在 `src/main/index.ts`，补丁 1 的服务端实现在
 `src/main/service/index.ts` 的 `sortKeys()`。
@@ -49,6 +51,8 @@ npm run build:main       # 从 src/ 重建主进程与 preload 产物
 - 改纯透明效果：编辑 `transparent.css`（样式）或 `transparent.js`（触发阈值 `THRESHOLD`）→ `npm run build:renderer`。两条规则都挂在 `html.sm-transparent` 下，默认 `backAlpha=255` 时完全不生效，界面 100% 保持原样。
 - 改设置页文案：在 `scripts/inject-renderer.mjs` 的 `textPatches` 里加规则，字符串要用压缩产物里的 `\uXXXX` 字面量（如「窗口置顶」= `\u7A97\u53E3\u7F6E\u9876`），改完跑 `npm run build:renderer`。
 - 改窗口置顶行为：只改 `src/main/pages/IndexWindow.ts`，然后 `npm run build:main`；`check:patches` 有三条防回退校验（默认字段 / 即时应用 / 不写死 true）。
+- 改盈亏文字颜色：压缩产物里 classic 主题写死 `e.color="#f56c6c"/"#67c23a"`，替换规则改成 `p(color, i.textAlpha)` 才跟随滑条；涨跌幅列原本就是后者，别改回去。
+- 合计行背景：它是表格外的独立 div，本身没有背景；`transparent.js` 把 `#table` 当前背景同步到 `--sm-sum-bg`（在去重之前，保证只改颜色也更新），容器样式引用该变量。
 - 新增渲染层功能：优先写成注入脚本（DOM 层）或新增独立窗口（主进程侧），
   不要直接手写压缩后的 Vue render function。
 - 若将来拿到原始 `.vue` 源码，应引入 Vite 重新构建整个 `dist/renderer/`，
